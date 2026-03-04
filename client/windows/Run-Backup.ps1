@@ -228,6 +228,7 @@ $success = 0
 $skipped = 0
 $failed = 0
 $matched = 0
+$availableTags = New-Object System.Collections.Generic.List[string]
 
 foreach ($item in $backupItems) {
     $tag = [string](Get-ConfigValue -Object $item -Name "tag" -DefaultValue "")
@@ -236,6 +237,10 @@ foreach ($item in $backupItems) {
 
     if ([string]::IsNullOrWhiteSpace($tag)) {
         $tag = $remoteSubdir
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($tag)) {
+        $availableTags.Add($tag)
     }
 
     if ([string]::IsNullOrWhiteSpace($tag) -or
@@ -299,6 +304,10 @@ foreach ($item in $backupItems) {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($OnlyTag) -and $matched -eq 0) {
+    $distinctTags = @($availableTags | Sort-Object -Unique)
+    if ($distinctTags.Count -gt 0) {
+        throw "No backupItems entry matched -OnlyTag '$OnlyTag'. Available tags: $($distinctTags -join ', ')"
+    }
     throw "No backupItems entry matched -OnlyTag '$OnlyTag'."
 }
 
