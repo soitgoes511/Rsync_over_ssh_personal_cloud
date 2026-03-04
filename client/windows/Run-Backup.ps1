@@ -7,6 +7,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
 
 function Write-Log {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -87,6 +90,7 @@ function Invoke-SshCommand {
         "-o", "BatchMode=yes",
         "-o", "ConnectTimeout=$ConnectTimeoutSeconds",
         "-o", "ConnectionAttempts=1",
+        "-o", "LogLevel=ERROR",
         "-o", "ServerAliveInterval=30",
         "-o", "StrictHostKeyChecking=accept-new",
         $Target,
@@ -201,7 +205,7 @@ if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
 
 $sshExeForCommand = $sshExe -replace "\\", "/"
 $sshKeyPathForCommand = $sshKeyPathNative -replace "\\", "/"
-$sshCommand = "$sshExeForCommand -i $sshKeyPathForCommand -p $serverPort -o BatchMode=yes -o ConnectTimeout=$sshConnectTimeoutSeconds -o ConnectionAttempts=1 -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
+$sshCommand = "$sshExeForCommand -i $sshKeyPathForCommand -p $serverPort -o BatchMode=yes -o ConnectTimeout=$sshConnectTimeoutSeconds -o ConnectionAttempts=1 -o LogLevel=ERROR -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
 $sshTarget = "$serverUser@$serverHost"
 
 if ($DryRun) {
