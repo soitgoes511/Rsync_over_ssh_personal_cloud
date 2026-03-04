@@ -204,6 +204,7 @@ $baseArgs = @(
 
 if ($DryRun) {
     $baseArgs += "--dry-run"
+    Write-Log "Dry-run enabled: no files will be transferred."
 }
 
 if ($bandwidth -gt 0) {
@@ -267,13 +268,15 @@ foreach ($item in $backupItems) {
     $remoteDir = "$($remoteBaseDir.TrimEnd('/'))/$deviceName/$cleanRemoteSubdir"
     $destination = "$serverUser@$($serverHost):$remoteDir/"
 
-    $remoteEscaped = $remoteDir -replace "'", "'\''"
-    $mkdirCommand = "mkdir -p '$remoteEscaped'"
-    $mkdirRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $mkdirCommand
-    if ($mkdirRc -ne 0) {
-        $failed++
-        Write-Log "Failed [$tag] creating remote directory with exit code $mkdirRc"
-        continue
+    if (-not $DryRun) {
+        $remoteEscaped = $remoteDir -replace "'", "'\''"
+        $mkdirCommand = "mkdir -p '$remoteEscaped'"
+        $mkdirRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $mkdirCommand
+        if ($mkdirRc -ne 0) {
+            $failed++
+            Write-Log "Failed [$tag] creating remote directory with exit code $mkdirRc"
+            continue
+        }
     }
 
     $args = @()
