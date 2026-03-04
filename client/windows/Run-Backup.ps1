@@ -70,6 +70,29 @@ function Resolve-CommandPath {
     throw "$baseMessage $InstallHint"
 }
 
+function Invoke-SshCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$SshExe,
+        [Parameter(Mandatory = $true)][string]$SshKeyPath,
+        [Parameter(Mandatory = $true)][int]$ServerPort,
+        [Parameter(Mandatory = $true)][string]$Target,
+        [Parameter(Mandatory = $true)][string]$RemoteCommand
+    )
+
+    $sshArgs = @(
+        "-i", $SshKeyPath,
+        "-p", "$ServerPort",
+        "-o", "BatchMode=yes",
+        "-o", "ServerAliveInterval=30",
+        "-o", "StrictHostKeyChecking=accept-new",
+        $Target,
+        $RemoteCommand
+    )
+
+    & $SshExe @sshArgs
+    return $LASTEXITCODE
+}
+
 function Convert-ToRsyncPath {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -151,6 +174,13 @@ if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
 $sshExeForCommand = $sshExe -replace "\\", "/"
 $sshKeyPathForCommand = $sshKeyPathNative -replace "\\", "/"
 $sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
+$sshTarget = "$serverUser@$serverHost"
+
+$remotePreflight = "command -v rsync >/dev/null 2>&1 && echo remote-rsync-ok"
+$preflightRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $remotePreflight
+if ($preflightRc -ne 0) {
+    throw "SSH preflight failed (exit code $preflightRc). Verify SSH key access for $sshTarget and that rsync is installed on the Ubuntu server."
+}
 
 $baseArgs = @(
     "--archive",
@@ -226,16 +256,21 @@ foreach ($item in $backupItems) {
 
     $cleanRemoteSubdir = $remoteSubdir.Trim("/")
     $remoteDir = "$($remoteBaseDir.TrimEnd('/'))/$deviceName/$cleanRemoteSubdir"
-    $remoteEscaped = $remoteDir -replace "'", "'\''"
-    $rsyncPathCmd = "mkdir -p '$remoteEscaped' && rsync"
     $destination = "$serverUser@$($serverHost):$remoteDir/"
+
+    $remoteEscaped = $remoteDir -replace "'", "'\''"
+    $mkdirCommand = "mkdir -p '$remoteEscaped'"
+    $mkdirRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $mkdirCommand
+    if ($mkdirRc -ne 0) {
+        $failed++
+        Write-Log "Failed [$tag] creating remote directory with exit code $mkdirRc"
+        continue
+    }
 
     $args = @()
     $args += $baseArgs
     $args += "-e"
     $args += $sshCommand
-    $args += "--rsync-path"
-    $args += $rsyncPathCmd
     $args += $localPathRsync
     $args += $destination
 

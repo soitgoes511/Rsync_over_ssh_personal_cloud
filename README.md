@@ -145,6 +145,15 @@ powershell -ExecutionPolicy Bypass -File .\client\windows\Run-Backup.ps1 -DryRun
 powershell -ExecutionPolicy Bypass -File .\client\windows\Run-Backup.ps1
 ```
 
+If Windows reports `connection unexpectedly closed`, run these checks:
+
+```powershell
+ssh -i "$env:USERPROFILE\.ssh\pcloud_backup_ed25519" backup@100.68.188.2 "echo ssh-ok && command -v rsync"
+ssh -i "$env:USERPROFILE\.ssh\pcloud_backup_ed25519" backup@100.68.188.2 "mkdir -p /srv/backups/win11-main/test && ls -ld /srv/backups/win11-main"
+```
+
+Both commands must succeed before `Run-Backup.ps1` will work.
+
 ## 5) Scheduling
 
 Pop!_OS cron example (every 6 hours):
