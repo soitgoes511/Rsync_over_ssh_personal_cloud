@@ -154,6 +154,14 @@ ssh -i "$env:USERPROFILE\.ssh\pcloud_backup_ed25519" backup@100.68.188.2 "mkdir 
 
 Both commands must succeed before `Run-Backup.ps1` will work.
 
+If SSH says `This account is currently not available`, the backup user shell is likely `nologin`.
+On Ubuntu server, run:
+
+```bash
+sudo usermod -s /bin/bash backup
+sudo bash server/setup_ubuntu_backup_server.sh --backup-user backup --backup-root /srv/backups
+```
+
 ## 5) Scheduling
 
 Pop!_OS cron example (every 6 hours):

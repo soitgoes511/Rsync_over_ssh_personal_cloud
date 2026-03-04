@@ -76,7 +76,8 @@ function Invoke-SshCommand {
         [Parameter(Mandatory = $true)][string]$SshKeyPath,
         [Parameter(Mandatory = $true)][int]$ServerPort,
         [Parameter(Mandatory = $true)][string]$Target,
-        [Parameter(Mandatory = $true)][string]$RemoteCommand
+        [Parameter(Mandatory = $true)][string]$RemoteCommand,
+        [switch]$Quiet
     )
 
     $sshArgs = @(
@@ -89,8 +90,16 @@ function Invoke-SshCommand {
         $RemoteCommand
     )
 
-    & $SshExe @sshArgs
-    return $LASTEXITCODE
+    $output = & $SshExe @sshArgs 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if (-not $Quiet -and $null -ne $output) {
+        foreach ($line in $output) {
+            Write-Host $line
+        }
+    }
+
+    return [int]$exitCode
 }
 
 function Convert-ToRsyncPath {
@@ -177,7 +186,7 @@ $sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort
 $sshTarget = "$serverUser@$serverHost"
 
 $remotePreflight = "command -v rsync >/dev/null 2>&1 && echo remote-rsync-ok"
-$preflightRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $remotePreflight
+$preflightRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $remotePreflight -Quiet
 if ($preflightRc -ne 0) {
     throw "SSH preflight failed (exit code $preflightRc). Verify SSH key access for $sshTarget and that rsync is installed on the Ubuntu server."
 }

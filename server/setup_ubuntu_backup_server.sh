@@ -28,6 +28,15 @@ require_root() {
 
 ensure_user() {
   if id "${BACKUP_USER}" >/dev/null 2>&1; then
+    local current_shell
+    current_shell="$(getent passwd "${BACKUP_USER}" | cut -d: -f7)"
+
+    case "${current_shell}" in
+      /usr/sbin/nologin|/sbin/nologin|/bin/false)
+        usermod --shell /bin/bash "${BACKUP_USER}"
+        ;;
+    esac
+
     return 0
   fi
 
