@@ -1,0 +1,25 @@
+{
+  "serverHost": "100.68.188.2",
+  "serverPort": 22,
+  "serverUser": "backup",
+  "remoteBaseDir": "/srv/backups",
+  "deviceName": "win11-main",
+  "sshKeyPath": "C:/Users/your_user/.ssh/pcloud_backup_ed25519",
+  "localPathStyle": "cygdrive",
+  "bandwidthLimitKbps": 0,
+  "excludeFile": "",
+  "extraRsyncArgs": [],
+  "backupItems": [
+    {
+      "tag": "documents",
+      "localPath": "C:/Users/your_user/Documents",
+      "remoteSubdir": "documents"
+    },
+    {
+      "tag": "downloads",
+      "localPath": "C:/Users/your_user/Downloads",
+      "remoteSubdir": "downloads"
+    }
+  ]
+}
+

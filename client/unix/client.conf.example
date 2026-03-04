@@ -1,0 +1,18 @@
+SERVER_HOST="100.68.188.2"
+SERVER_PORT=22
+SERVER_USER="backup"
+REMOTE_BASE_DIR="/srv/backups"
+DEVICE_NAME="popos-laptop"
+SSH_KEY_PATH="$HOME/.ssh/pcloud_backup_ed25519"
+
+# Optional
+EXCLUDES_FILE="$HOME/.config/pcloud-backup/excludes.txt"
+BANDWIDTH_LIMIT_KBPS=0
+RSYNC_EXTRA_ARGS=""
+
+# Format: "tag|local_path|remote_subdir"
+BACKUP_ITEMS=(
+  "documents|$HOME/Documents|documents"
+  "downloads|$HOME/Downloads|downloads"
+)
+

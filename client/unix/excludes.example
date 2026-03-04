@@ -1,0 +1,7 @@
+# Ignore temporary and cache files
+*.tmp
+*.temp
+*.part
+.cache/
+Thumbs.db
+
