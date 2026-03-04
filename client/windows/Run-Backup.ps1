@@ -77,6 +77,7 @@ function Invoke-SshCommand {
         [Parameter(Mandatory = $true)][int]$ServerPort,
         [Parameter(Mandatory = $true)][string]$Target,
         [Parameter(Mandatory = $true)][string]$RemoteCommand,
+        [int]$ConnectTimeoutSeconds = 15,
         [switch]$Quiet
     )
 
@@ -84,6 +85,8 @@ function Invoke-SshCommand {
         "-i", $SshKeyPath,
         "-p", "$ServerPort",
         "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=$ConnectTimeoutSeconds",
+        "-o", "ConnectionAttempts=1",
         "-o", "ServerAliveInterval=30",
         "-o", "StrictHostKeyChecking=accept-new",
         $Target,
@@ -157,6 +160,7 @@ if ([string]::IsNullOrWhiteSpace($serverHost) -or
 }
 
 $serverPort = [int](Get-ConfigValue -Object $config -Name "serverPort" -DefaultValue 22)
+$sshConnectTimeoutSeconds = [int](Get-ConfigValue -Object $config -Name "sshConnectTimeoutSeconds" -DefaultValue 15)
 $pathStyle = [string](Get-ConfigValue -Object $config -Name "localPathStyle" -DefaultValue "cygdrive")
 $bandwidth = [int](Get-ConfigValue -Object $config -Name "bandwidthLimitKbps" -DefaultValue 0)
 $excludeFile = [string](Get-ConfigValue -Object $config -Name "excludeFile" -DefaultValue "")
@@ -167,6 +171,10 @@ $sshCommandConfig = [string](Get-ConfigValue -Object $config -Name "sshCommand" 
 
 if ($null -eq $backupItems -or $backupItems.Count -eq 0) {
     throw "Config backupItems array is empty."
+}
+
+if ($sshConnectTimeoutSeconds -le 0) {
+    $sshConnectTimeoutSeconds = 15
 }
 
 $rsyncInstallHint = "Install MSYS2 and rsync: winget install -e --id MSYS2.MSYS2, then in an MSYS2 shell run: pacman -S --noconfirm rsync openssh. After install, either add C:\msys64\usr\bin to PATH or set rsyncCommand/sshCommand in the JSON config."
@@ -182,11 +190,16 @@ if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
 
 $sshExeForCommand = $sshExe -replace "\\", "/"
 $sshKeyPathForCommand = $sshKeyPathNative -replace "\\", "/"
-$sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
+$sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ConnectTimeout=$sshConnectTimeoutSeconds -o ConnectionAttempts=1 -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
 $sshTarget = "$serverUser@$serverHost"
 
+if ($DryRun) {
+    Write-Log "Dry-run enabled: no files will be transferred."
+}
+
+Write-Log "Checking SSH connectivity to $sshTarget..."
 $remotePreflight = "command -v rsync >/dev/null 2>&1 && echo remote-rsync-ok"
-$preflightRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $remotePreflight -Quiet
+$preflightRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $remotePreflight -ConnectTimeoutSeconds $sshConnectTimeoutSeconds -Quiet
 if ($preflightRc -ne 0) {
     throw "SSH preflight failed (exit code $preflightRc). Verify SSH key access for $sshTarget and that rsync is installed on the Ubuntu server."
 }
@@ -204,7 +217,6 @@ $baseArgs = @(
 
 if ($DryRun) {
     $baseArgs += "--dry-run"
-    Write-Log "Dry-run enabled: no files will be transferred."
 }
 
 if ($bandwidth -gt 0) {
@@ -276,7 +288,7 @@ foreach ($item in $backupItems) {
     if (-not $DryRun) {
         $remoteEscaped = $remoteDir -replace "'", "'\''"
         $mkdirCommand = "mkdir -p '$remoteEscaped'"
-        $mkdirRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $mkdirCommand
+        $mkdirRc = Invoke-SshCommand -SshExe $sshExe -SshKeyPath $sshKeyPathNative -ServerPort $serverPort -Target $sshTarget -RemoteCommand $mkdirCommand -ConnectTimeoutSeconds $sshConnectTimeoutSeconds
         if ($mkdirRc -ne 0) {
             $failed++
             Write-Log "Failed [$tag] creating remote directory with exit code $mkdirRc"

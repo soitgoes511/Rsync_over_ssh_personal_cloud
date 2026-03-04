@@ -133,6 +133,12 @@ Optional JSON keys for explicit binaries:
 "sshCommand": "C:/Windows/System32/OpenSSH/ssh.exe"
 ```
 
+Optional JSON key for SSH connect timeout (seconds, default 15):
+
+```json
+"sshConnectTimeoutSeconds": 15
+```
+
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.config\pcloud-backup" | Out-Null
 Copy-Item .\client\windows\client.windows.json.example "$env:USERPROFILE\.config\pcloud-backup\client.windows.json"
