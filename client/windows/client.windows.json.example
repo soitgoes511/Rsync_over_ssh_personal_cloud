@@ -5,21 +5,20 @@
   "remoteBaseDir": "/srv/backups",
   "deviceName": "win11-main",
   "sshKeyPath": "C:/Users/your_user/.ssh/pcloud_backup_ed25519",
-  "localPathStyle": "cygdrive",
+  "localPathStyle": "msys",
   "bandwidthLimitKbps": 0,
   "excludeFile": "",
   "extraRsyncArgs": [],
   "backupItems": [
     {
-      "tag": "documents",
-      "localPath": "C:/Users/your_user/Documents",
-      "remoteSubdir": "documents"
+      "tag": "Projects",
+      "localPath": "C:/Users/micha/Documents/Projects",
+      "remoteSubdir": "documents/Projects"
     },
     {
-      "tag": "downloads",
-      "localPath": "C:/Users/your_user/Downloads",
-      "remoteSubdir": "downloads"
+      "tag": "Residence_renewal",
+      "localPath": "C:/Users/micha/Documents/Residence_card_renewal_backup",
+      "remoteSubdir": "documents/Renewal_2026"
     }
   ]
 }
-

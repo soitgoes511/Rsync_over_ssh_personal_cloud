@@ -36,6 +36,40 @@ function Get-ConfigValue {
     return $prop.Value
 }
 
+function Resolve-CommandPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string]$ConfiguredValue = "",
+        [string]$InstallHint = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ConfiguredValue)) {
+        $expandedConfigured = [Environment]::ExpandEnvironmentVariables($ConfiguredValue)
+        if (Test-Path -Path $expandedConfigured -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($expandedConfigured)
+        }
+
+        $configuredCommand = Get-Command $ConfiguredValue -ErrorAction SilentlyContinue
+        if ($null -ne $configuredCommand) {
+            return $configuredCommand.Source
+        }
+
+        throw "Configured command for '$Name' was not found: $ConfiguredValue"
+    }
+
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    $baseMessage = "Required command '$Name' was not found in PATH."
+    if ([string]::IsNullOrWhiteSpace($InstallHint)) {
+        throw $baseMessage
+    }
+
+    throw "$baseMessage $InstallHint"
+}
+
 function Convert-ToRsyncPath {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -74,9 +108,6 @@ if (-not (Test-Path -Path $ConfigPath -PathType Leaf)) {
     throw "Config file not found: $ConfigPath"
 }
 
-$null = Get-Command rsync -ErrorAction Stop
-$null = Get-Command ssh -ErrorAction Stop
-
 $config = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
 
 $serverHost = [string](Get-ConfigValue -Object $config -Name "serverHost")
@@ -99,18 +130,27 @@ $bandwidth = [int](Get-ConfigValue -Object $config -Name "bandwidthLimitKbps" -D
 $excludeFile = [string](Get-ConfigValue -Object $config -Name "excludeFile" -DefaultValue "")
 $backupItems = Get-ConfigValue -Object $config -Name "backupItems"
 $extraRsyncArgs = Get-ConfigValue -Object $config -Name "extraRsyncArgs" -DefaultValue @()
+$rsyncCommandConfig = [string](Get-ConfigValue -Object $config -Name "rsyncCommand" -DefaultValue "")
+$sshCommandConfig = [string](Get-ConfigValue -Object $config -Name "sshCommand" -DefaultValue "")
 
 if ($null -eq $backupItems -or $backupItems.Count -eq 0) {
     throw "Config backupItems array is empty."
 }
+
+$rsyncInstallHint = "Install MSYS2 and rsync: winget install -e --id MSYS2.MSYS2, then in an MSYS2 shell run: pacman -S --noconfirm rsync openssh. After install, either add C:\msys64\usr\bin to PATH or set rsyncCommand/sshCommand in the JSON config."
+$sshInstallHint = "Install OpenSSH Client on Windows, or set sshCommand in the JSON config."
+
+$rsyncExe = Resolve-CommandPath -Name "rsync" -ConfiguredValue $rsyncCommandConfig -InstallHint $rsyncInstallHint
+$sshExe = Resolve-CommandPath -Name "ssh" -ConfiguredValue $sshCommandConfig -InstallHint $sshInstallHint
 
 $sshKeyPathNative = [System.IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($sshKeyPathValue))
 if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
     throw "SSH key file not found: $sshKeyPathNative"
 }
 
+$sshExeForCommand = $sshExe -replace "\\", "/"
 $sshKeyPathForCommand = $sshKeyPathNative -replace "\\", "/"
-$sshCommand = "ssh -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
+$sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
 
 $baseArgs = @(
     "--archive",
@@ -200,7 +240,7 @@ foreach ($item in $backupItems) {
     $args += $destination
 
     Write-Log "Starting [$tag] $localPathNative -> $destination"
-    & rsync @args
+    & $rsyncExe @args
     if ($LASTEXITCODE -eq 0) {
         $success++
         Write-Log "Completed [$tag]"

@@ -110,7 +110,28 @@ bash client/unix/run_backup.sh
 
 ### Windows 11
 
-Install `rsync` + `ssh` in PATH (for example cwRsync or MSYS2 rsync + OpenSSH).
+Install MSYS2 + rsync:
+
+```powershell
+winget install -e --id MSYS2.MSYS2
+```
+
+Then open an MSYS2 shell once and run:
+
+```bash
+pacman -S --noconfirm rsync openssh
+```
+
+You can either:
+- add `C:\msys64\usr\bin` to PATH, or
+- keep explicit `rsyncCommand` / `sshCommand` in the JSON config (recommended).
+
+Optional JSON keys for explicit binaries:
+
+```json
+"rsyncCommand": "C:/msys64/usr/bin/rsync.exe",
+"sshCommand": "C:/Windows/System32/OpenSSH/ssh.exe"
+```
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.config\pcloud-backup" | Out-Null
@@ -146,4 +167,3 @@ Restore Pop!_OS Documents to a local folder:
 ```bash
 rsync -av backup@100.68.188.2:/srv/backups/popos-laptop/documents/ ~/restore/documents/
 ```
-
