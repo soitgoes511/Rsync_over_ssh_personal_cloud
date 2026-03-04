@@ -183,6 +183,17 @@ $sshInstallHint = "Install OpenSSH Client on Windows, or set sshCommand in the J
 $rsyncExe = Resolve-CommandPath -Name "rsync" -ConfiguredValue $rsyncCommandConfig -InstallHint $rsyncInstallHint
 $sshExe = Resolve-CommandPath -Name "ssh" -ConfiguredValue $sshCommandConfig -InstallHint $sshInstallHint
 
+if ([string]::IsNullOrWhiteSpace($sshCommandConfig)) {
+    $rsyncDir = Split-Path -Path $rsyncExe -Parent
+    $bundledSsh = Join-Path -Path $rsyncDir -ChildPath "ssh.exe"
+    if (Test-Path -Path $bundledSsh -PathType Leaf) {
+        $sshExe = [System.IO.Path]::GetFullPath($bundledSsh)
+    }
+}
+
+Write-Log "Using rsync: $rsyncExe"
+Write-Log "Using ssh: $sshExe"
+
 $sshKeyPathNative = [System.IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($sshKeyPathValue))
 if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
     throw "SSH key file not found: $sshKeyPathNative"
@@ -190,7 +201,7 @@ if (-not (Test-Path -Path $sshKeyPathNative -PathType Leaf)) {
 
 $sshExeForCommand = $sshExe -replace "\\", "/"
 $sshKeyPathForCommand = $sshKeyPathNative -replace "\\", "/"
-$sshCommand = "`"$sshExeForCommand`" -i `"$sshKeyPathForCommand`" -p $serverPort -o BatchMode=yes -o ConnectTimeout=$sshConnectTimeoutSeconds -o ConnectionAttempts=1 -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
+$sshCommand = "$sshExeForCommand -i $sshKeyPathForCommand -p $serverPort -o BatchMode=yes -o ConnectTimeout=$sshConnectTimeoutSeconds -o ConnectionAttempts=1 -o ServerAliveInterval=30 -o StrictHostKeyChecking=accept-new"
 $sshTarget = "$serverUser@$serverHost"
 
 if ($DryRun) {
@@ -211,7 +222,6 @@ $baseArgs = @(
     "--delete",
     "--partial",
     "--inplace",
-    "--protect-args",
     "--itemize-changes"
 )
 
